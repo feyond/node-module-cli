@@ -6,6 +6,7 @@ import * as path from 'path';
 import fse from "fs-extra";
 import handlebars from 'handlebars';
 import shell from "shelljs";
+import ora from "ora";
 
 const program = new Command();
 
@@ -38,6 +39,53 @@ function getQuestions(name: string) {
     }, ...questions];
 }
 
+function gitCheck() {
+    if (!shell.which('git')) {
+        spinner.fail("Sorry, this script requires git");
+        shell.exit(1);
+    }
+    spinner.succeed("git checked...");
+}
+
+function gitClone(params: Record<string, string>) {
+    const template_version = "v1.0.2";
+    const template_repo = "https://github.com/feyond/node-module-demo.git";
+    let dest = process.cwd();
+    spinner.info("Repo: " + template_repo);
+    spinner.info("Version: " + template_version);
+    spinner.start("start download template ... ");
+    const { stdout, stderr, code } = shell.exec(`git clone -b ${template_version} --single-branch ${template_repo} ${params.name}`, {silent: true});
+    if (code !== 0) {
+        // shell.('git clone failed...' + stderr);
+        spinner.fail("download failed ...");
+        !!stderr && spinner.info(stderr);
+        !!stdout && spinner.info(stdout);
+        shell.exit(1);
+    }
+    spinner.succeed("download success ...");
+    let destPath = path.join(dest, params.name);
+    spinner.info("Local Path: " + destPath);
+    return destPath;
+}
+
+function init(dest: string, params: Record<string, string>) {
+    spinner.start("init template ...");
+    fse.removeSync(path.join(dest, ".git"));
+
+    const pkgPath = path.join(dest, "package.json");
+    const content = fse.readFileSync(pkgPath).toString();
+    const template = handlebars.compile(content);
+    const result = template(params);
+    fse.writeFileSync(pkgPath, result);
+    spinner.succeed("replacing package.json success");
+
+    spinner.start("npm install ... \n");
+    shell.cd(dest);
+    shell.exec("npm install");
+    spinner.succeed("template init success!");
+}
+
+const spinner = ora('start init node module...').start();
 // <required> or [optional]
 program
     // .command('init <name>')
@@ -45,44 +93,15 @@ program
     .command('init')
     .argument("[name]", "create module name?")
     .action(async (moduleName: string) => {
-        !!moduleName && console.log('start init node module:', moduleName);
+        !!moduleName && spinner.info("init module name: " + moduleName);
+        spinner.isSpinning && spinner.stop();
         const answers = await inquirer.prompt(getQuestions(moduleName));
         const params = {name: moduleName, ...answers};
 
-        if (!shell.which('git')) {
-            shell.echo('Sorry, this script requires git');
-            shell.exit(1);
-        }
-
-        const template_version = "v1.0.2";
-        const template_repo = "https://github.com/feyond/node-module-demo.git";
-        let dest = process.cwd();
-        shell.cd(dest);
-        const { stdout, stderr, code } = shell.exec(`git clone -b ${template_version} --single-branch ${template_repo} ${params.name}`, {silent: true});
-
-        if (code !== 0) {
-            shell.echo('git clone failed...' + stderr);
-            shell.exit(1);
-        }
-        !!stdout && console.log(stdout);
-        !!stderr && console.log(stderr);
-
-        // 引入path模块，模板目录写绝对路径
-        // const __filename = fileURLToPath(import.meta.url);
-        // const __dirname = dirname(__filename);
-        // // const __dirname = path.resolve(path.dirname(''));
-        // const tmplDir = path.join(__dirname, 'templates');
-        // const cwd = process.cwd();
-        // const destDir = path.join(cwd, params.name);
-        // fse.mkdirSync(destDir);
-        // fse.copySync(tmplDir, destDir);
-        //
-        fse.removeSync(path.join(dest, params.name, ".git"));
-        const pkgPath = path.join(dest, params.name, "package.json");
-        const content = fse.readFileSync(pkgPath).toString();
-        const template = handlebars.compile(content);
-        const result = template(params);
-        fse.writeFileSync(pkgPath, result);
+        gitCheck();
+        let dest = gitClone(params);
+        init(dest, params);
+        spinner.isSpinning && spinner.stop();
     })
 ;
 
