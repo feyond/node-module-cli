@@ -54,9 +54,11 @@ program
             shell.exit(1);
         }
 
+        const template_version = "v1.0.2";
+        const template_repo = "https://github.com/feyond/node-module-demo.git";
         let dest = process.cwd();
         shell.cd(dest);
-        const { stdout, stderr, code } = shell.exec(`git clone https://github.com/feyond/node-module-demo.git ${params.name}`, {silent: true});
+        const { stdout, stderr, code } = shell.exec(`git clone -b ${template_version} --single-branch ${template_repo} ${params.name}`, {silent: true});
 
         if (code !== 0) {
             shell.echo('git clone failed...' + stderr);

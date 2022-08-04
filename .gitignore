@@ -1,2 +1,8 @@
 # Project exclude paths
 /node_modules/
+/.idea/
+/lib/
+/dist/
+/esm/
+/cjs/
+.DS_Store
