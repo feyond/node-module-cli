@@ -48,7 +48,7 @@ function gitCheck() {
 }
 
 function gitClone(params: Record<string, string>) {
-    const template_version = "v1.0.2";
+    const template_version = "v1.0.3";
     const template_repo = "https://github.com/feyond/node-module-demo.git";
     let dest = process.cwd();
     spinner.info("Repo: " + template_repo);
